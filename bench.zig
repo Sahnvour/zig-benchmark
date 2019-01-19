@@ -160,15 +160,25 @@ fn benchMin(ctx: *Context, comptime intType: type) void {
 pub fn doNotOptimize(value: var) void {
     // LLVM triggers an assert if we pass non-trivial types as inputs for the
     // asm volatile expression.
+    // Workaround until asm support is better on Zig's end.
     const T = @typeOf(value);
-    switch (@typeId(T)) {
+    const typeId = @typeId(T);
+    switch (typeId) {
+        TypeId.Bool, TypeId.Int, TypeId.Float => {
+            asm volatile ("" : : [_]"r,m"(value) : "memory");
+        },
+        TypeId.Optional => {
+            if (value) |v| doNotOptimize(v);
+        },
         TypeId.Struct => {
             inline for (comptime std.meta.fields(T)) |field| {
-                asm volatile ("" : : [_]"r,m"(@field(value, field.name)) : "memory");
+                doNotOptimize(@field(value, field.name));
             }
         },
-        TypeId.Bool, TypeId.Int, TypeId.Float => { asm volatile ("" : : [_]"r,m"(value) : "memory"); },
-        else => @compileError("not implemented")
+        TypeId.Type, TypeId.Void, TypeId.NoReturn, TypeId.ComptimeFloat,
+        TypeId.ComptimeInt, TypeId.Undefined, TypeId.Null, TypeId.Fn,
+        TypeId.Namespace, TypeId.BoundFn => @compileError("doNotOptimize makes no sense for " ++ @tagName(typeId)),
+        else => @compileError("doNotOptimize is not implemented for " ++ @tagName(typeId))
     }
 }
 
