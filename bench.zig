@@ -77,7 +77,7 @@ pub fn benchmark(name: comptime []const u8, f: BenchFn) void {
         },
         time.microsecond + 1...time.millisecond => {
             unit = time.microsecond;
-            unit_name = "µs";
+            unit_name = "us";
         },
         else => {
             unit = time.millisecond;
@@ -102,7 +102,7 @@ fn argTypeFromFn(comptime f: var) type {
 
 pub fn benchmarkArgs(comptime name: []const u8, comptime f: var, comptime args: []const argTypeFromFn(f)) void {
     comptime if (@typeId(@typeOf(f)) != TypeId.Fn) {
-        @compileError("Third argument must be a function.");
+        @compileError("Second argument must be a function.");
     };
 
     inline for (args) |a| {
@@ -117,7 +117,7 @@ pub fn benchmarkArgs(comptime name: []const u8, comptime f: var, comptime args: 
             },
             time.microsecond + 1...time.millisecond => {
                 unit = time.microsecond;
-                unit_name = "µs";
+                unit_name = "us";
             },
             else => {
                 unit = time.millisecond;
