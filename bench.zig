@@ -157,6 +157,25 @@ fn benchMin(ctx: *Context, comptime intType: type) void {
     }
 }
 
+pub fn doNotOptimize(value: var) void {
+    // LLVM triggers an assert if we pass non-trivial types as inputs for the
+    // asm volatile expression.
+    const T = @typeOf(value);
+    switch (@typeId(T)) {
+        TypeId.Struct => {
+            inline for (comptime std.meta.fields(T)) |field| {
+                asm volatile ("" : : [_]"r,m"(@field(value, field.name)) : "memory");
+            }
+        },
+        TypeId.Bool, TypeId.Int, TypeId.Float => { asm volatile ("" : : [_]"r,m"(value) : "memory"); },
+        else => @compileError("not implemented")
+    }
+}
+
+pub fn clobberMemory() void {
+    asm volatile ("" : : : "memory");
+}
+
 pub fn main() void {
     benchmark("Foo57", benchFoo57);
     benchmarkArgs("Foo", benchFoo, []const u32{20, 30, 57, 241});
