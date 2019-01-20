@@ -104,10 +104,6 @@ fn argTypeFromFn(comptime f: var) type {
 }
 
 pub fn benchmarkArgs(comptime name: []const u8, comptime f: var, comptime args: []const argTypeFromFn(f)) void {
-    comptime if (@typeId(@typeOf(f)) != TypeId.Fn) {
-        @compileError("Second argument must be a function.");
-    };
-
     inline for (args) |a| {
         var ctx = Context.init();
         f(&ctx, a);
