@@ -35,7 +35,7 @@ pub const Context = struct {
             State.Heating => {
                 const elapsed = self.timer.read();
                 self.nanoseconds += elapsed;
-                if (self.nanoseconds >= time.second / 4) {
+                if (self.nanoseconds >= time.second / 8) {
                     // Caches should be hot
                     self.state = State.Running;
                     self.nanoseconds = 0;
@@ -49,7 +49,7 @@ pub const Context = struct {
                 // be more efficient and less disturbing for the benchmark
                 self.nanoseconds += self.timer.read();
                 self.iter += 1;
-                if (self.nanoseconds >= time.second) {
+                if (self.nanoseconds >= time.second / 2) {
                     self.state = State.Finished;
                     return false;
                 }
