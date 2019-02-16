@@ -70,7 +70,7 @@ pub const Context = struct {
 
 pub fn benchmark(name: comptime []const u8, f: BenchFn) void {
     var ctx = Context.init();
-    f(&ctx);
+    @noInlineCall(f, &ctx);
     var unit: u64 = undefined;
     var unit_name: []const u8 = undefined;
     switch (ctx.averageTime(1)) {
@@ -106,7 +106,7 @@ fn argTypeFromFn(comptime f: var) type {
 pub fn benchmarkArgs(comptime name: []const u8, comptime f: var, comptime args: []const argTypeFromFn(f)) void {
     inline for (args) |a| {
         var ctx = Context.init();
-        f(&ctx, a);
+        @noInlineCall(f, &ctx, a);
         var unit: u64 = undefined;
         var unit_name: []const u8 = undefined;
         switch (ctx.averageTime(1)) {
