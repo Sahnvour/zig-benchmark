@@ -96,11 +96,16 @@ fn benchArgFn(comptime argType: type) type {
 
 fn argTypeFromFn(comptime f: var) type {
     comptime const F = @typeOf(f);
-    comptime if (@typeId(F) != TypeId.Fn) {
+    if (@typeId(F) != TypeId.Fn) {
         @compileError("Argument must be a function.");
-    };
+    }
 
-    return @typeInfo(F).Fn.args[1].arg_type.?;
+    const fnInfo = @typeInfo(F).Fn;
+    if (fnInfo.args.len != 2) {
+        @compileError("Only functions taking 1 argument are accepted.");
+    }
+
+    return fnInfo.args[1].arg_type.?;
 }
 
 pub fn benchmarkArgs(comptime name: []const u8, comptime f: var, comptime args: []const argTypeFromFn(f)) void {
@@ -123,7 +128,7 @@ pub fn benchmarkArgs(comptime name: []const u8, comptime f: var, comptime args: 
                 unit_name = "ms";
             }
         }
-        warn("{}<{}>: avg {.3}{} ({} iterations)\n", name, if (@typeOf(a) == type) @typeName(a) else a, ctx.averageTime(unit), unit_name, ctx.iter);
+        warn("{} <{}>: avg {.3}{} ({} iterations)\n", name, if (@typeOf(a) == type) @typeName(a) else a, ctx.averageTime(unit), unit_name, ctx.iter);
     }
 }
 
