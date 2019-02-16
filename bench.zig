@@ -127,32 +127,6 @@ pub fn benchmarkArgs(comptime name: []const u8, comptime f: var, comptime args: 
     }
 }
 
-fn foo(ms: u32) void {
-    time.sleep(ms * time.millisecond);
-}
-
-fn benchFoo57(ctx: *Context) void {
-    while (ctx.run()) {
-        foo(57);
-    }
-}
-
-fn benchFoo(ctx: *Context, ms: u32) void {
-    while (ctx.run()) {
-        foo(ms);
-    }
-}
-
-fn min(comptime T: type, a: T, b: T) T {
-    return if (a < b) a else b;
-}
-
-fn benchMin(ctx: *Context, comptime intType: type) void {
-    while (ctx.run()) {
-        foo(@intCast(u32, min(intType, 37, 48)));
-    }
-}
-
 pub fn doNotOptimize(value: var) void {
     // LLVM triggers an assert if we pass non-trivial types as inputs for the
     // asm volatile expression.
@@ -182,8 +156,41 @@ pub fn clobberMemory() void {
     asm volatile ("" : : : "memory");
 }
 
-pub fn main() void {
-    benchmark("Foo57", benchFoo57);
-    benchmarkArgs("Foo", benchFoo, []const u32{20, 30, 57, 241});
+test "benchmark" {
+    const benchSleep57 = struct {
+        fn benchSleep57(ctx: *Context) void {
+            while (ctx.run()) {
+                time.sleep(57 * time.millisecond);
+            }
+        }
+    }.benchSleep57;
+
+    std.debug.warn("\n");
+    benchmark("Sleep57", benchSleep57);
+}
+
+test "benchmarkArgs" {
+    const benchSleep = struct {
+        fn benchSleep(ctx: *Context, ms: u32) void {
+            while (ctx.run()) {
+                time.sleep(ms * time.millisecond);
+            }
+        }
+    }.benchSleep;
+
+    std.debug.warn("\n");
+    benchmarkArgs("Sleep", benchSleep, []const u32{20, 30, 57});
+}
+
+test "benchmarkArgs types" {
+    const benchMin = struct {
+        fn benchMin(ctx: *Context, comptime intType: type) void {
+            while (ctx.run()) {
+                time.sleep(std.math.min(37, 48) * time.millisecond);
+            }
+        }
+    }.benchMin;
+
+    std.debug.warn("\n");
     benchmarkArgs("Min", benchMin, []type{u32, u64});
 }
