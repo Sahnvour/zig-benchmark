@@ -22,7 +22,7 @@ pub const Context = struct {
     };
 
     pub fn init() Context {
-        return Context{.timer = Timer.start() catch unreachable, .iter = 0, .state = State.None, .nanoseconds = 0};
+        return Context{ .timer = Timer.start() catch unreachable, .iter = 0, .state = State.None, .nanoseconds = 0 };
     }
 
     pub fn run(self: *Context) bool {
@@ -52,13 +52,12 @@ pub const Context = struct {
                 if (self.nanoseconds >= time.second / 2) {
                     self.state = State.Finished;
                     return false;
-                }
-                else {
+                } else {
                     self.timer.reset();
                     return true;
                 }
             },
-            State.Finished => unreachable
+            State.Finished => unreachable,
         }
     }
 
@@ -85,7 +84,7 @@ pub fn benchmark(name: comptime []const u8, f: BenchFn) void {
         else => {
             unit = time.millisecond;
             unit_name = "ms";
-        }
+        },
     }
     warn("{}: avg {.3}{} ({} iterations)\n", name, ctx.averageTime(unit), unit_name, ctx.iter);
 }
@@ -126,7 +125,7 @@ pub fn benchmarkArgs(comptime name: []const u8, comptime f: var, comptime args: 
             else => {
                 unit = time.millisecond;
                 unit_name = "ms";
-            }
+            },
         }
         warn("{} <{}>: avg {.3}{} ({} iterations)\n", name, if (@typeOf(a) == type) @typeName(a) else a, ctx.averageTime(unit), unit_name, ctx.iter);
     }
@@ -140,7 +139,11 @@ pub fn doNotOptimize(value: var) void {
     const typeId = @typeId(T);
     switch (typeId) {
         TypeId.Bool, TypeId.Int, TypeId.Float => {
-            asm volatile ("" : : [_]"r,m"(value) : "memory");
+            asm volatile (""
+                :
+                : [_] "r,m" (value)
+                : "memory"
+            );
         },
         TypeId.Optional => {
             if (value) |v| doNotOptimize(v);
@@ -150,15 +153,17 @@ pub fn doNotOptimize(value: var) void {
                 doNotOptimize(@field(value, field.name));
             }
         },
-        TypeId.Type, TypeId.Void, TypeId.NoReturn, TypeId.ComptimeFloat,
-        TypeId.ComptimeInt, TypeId.Undefined, TypeId.Null, TypeId.Fn,
-        TypeId.Namespace, TypeId.BoundFn => @compileError("doNotOptimize makes no sense for " ++ @tagName(typeId)),
-        else => @compileError("doNotOptimize is not implemented for " ++ @tagName(typeId))
+        TypeId.Type, TypeId.Void, TypeId.NoReturn, TypeId.ComptimeFloat, TypeId.ComptimeInt, TypeId.Undefined, TypeId.Null, TypeId.Fn, TypeId.Namespace, TypeId.BoundFn => @compileError("doNotOptimize makes no sense for " ++ @tagName(typeId)),
+        else => @compileError("doNotOptimize is not implemented for " ++ @tagName(typeId)),
     }
 }
 
 pub fn clobberMemory() void {
-    asm volatile ("" : : : "memory");
+    asm volatile (""
+        :
+        :
+        : "memory"
+    );
 }
 
 test "benchmark" {
@@ -184,7 +189,7 @@ test "benchmarkArgs" {
     }.benchSleep;
 
     std.debug.warn("\n");
-    benchmarkArgs("Sleep", benchSleep, []const u32{20, 30, 57});
+    benchmarkArgs("Sleep", benchSleep, []const u32{ 20, 30, 57 });
 }
 
 test "benchmarkArgs types" {
@@ -197,5 +202,5 @@ test "benchmarkArgs types" {
     }.benchMin;
 
     std.debug.warn("\n");
-    benchmarkArgs("Min", benchMin, []type{u32, u64});
+    benchmarkArgs("Min", benchMin, []type{ u32, u64 });
 }
