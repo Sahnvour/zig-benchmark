@@ -11,8 +11,12 @@ const BenchFn = fn (*Context) void;
 pub const Context = struct {
     timer: Timer,
     iter: u32,
+    count: u32,
     state: State,
     nanoseconds: u64,
+
+    const HeatingTime = time.second / 2;
+    const RunTime = time.second / 2;
 
     const State = enum {
         None,
@@ -22,7 +26,7 @@ pub const Context = struct {
     };
 
     pub fn init() Context {
-        return Context{ .timer = Timer.start() catch unreachable, .iter = 0, .state = State.None, .nanoseconds = 0 };
+        return Context{ .timer = Timer.start() catch unreachable, .iter = 0, .count = 0, .state = State.None, .nanoseconds = 0 };
     }
 
     pub fn run(self: *Context) bool {
@@ -33,28 +37,25 @@ pub const Context = struct {
                 return true;
             },
             State.Heating => {
+                self.count += 1;
                 const elapsed = self.timer.read();
-                self.nanoseconds += elapsed;
-                if (self.nanoseconds >= time.second / 8) {
+                if (elapsed >= HeatingTime) {
                     // Caches should be hot
+                    self.count = @intCast(u32, RunTime / (HeatingTime / self.count));
                     self.state = State.Running;
-                    self.nanoseconds = 0;
+                    self.timer.reset();
                 }
-                self.timer.reset();
+
                 return true;
             },
             State.Running => {
-                // TODO check if reading timings is costly, maybe first
-                // estimating a number of runs based on heating phase would
-                // be more efficient and less disturbing for the benchmark
-                self.nanoseconds += self.timer.read();
-                self.iter += 1;
-                if (self.nanoseconds >= time.second / 2) {
+                if (self.iter < self.count) {
+                    self.iter += 1;
+                    return true;
+                } else {
+                    self.nanoseconds = self.timer.read();
                     self.state = State.Finished;
                     return false;
-                } else {
-                    self.timer.reset();
-                    return true;
                 }
             },
             State.Finished => unreachable,
