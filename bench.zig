@@ -26,44 +26,44 @@ pub const Context = struct {
     };
 
     pub fn init() Context {
-        return Context{ .timer = Timer.start() catch unreachable, .iter = 0, .count = 0, .state = State.None, .nanoseconds = 0 };
+        return Context{ .timer = Timer.start() catch unreachable, .iter = 0, .count = 0, .state = .None, .nanoseconds = 0 };
     }
 
     pub fn run(self: *Context) bool {
         switch (self.state) {
-            State.None => {
-                self.state = State.Heating;
+            .None => {
+                self.state = .Heating;
                 self.timer.reset();
                 return true;
             },
-            State.Heating => {
+            .Heating => {
                 self.count += 1;
                 const elapsed = self.timer.read();
                 if (elapsed >= HeatingTime) {
                     // Caches should be hot
                     self.count = @intCast(u32, RunTime / (HeatingTime / self.count));
-                    self.state = State.Running;
+                    self.state = .Running;
                     self.timer.reset();
                 }
 
                 return true;
             },
-            State.Running => {
+            .Running => {
                 if (self.iter < self.count) {
                     self.iter += 1;
                     return true;
                 } else {
                     self.nanoseconds = self.timer.read();
-                    self.state = State.Finished;
+                    self.state = .Finished;
                     return false;
                 }
             },
-            State.Finished => unreachable,
+            .Finished => unreachable,
         }
     }
 
     pub fn averageTime(self: *Context, unit: u64) f32 {
-        assert(self.state == State.Finished);
+        assert(self.state == .Finished);
         return @intToFloat(f32, self.nanoseconds / unit) / @intToFloat(f32, self.iter);
     }
 };
@@ -139,22 +139,22 @@ pub fn doNotOptimize(value: var) void {
     const T = @typeOf(value);
     const typeId = @typeId(T);
     switch (typeId) {
-        TypeId.Bool, TypeId.Int, TypeId.Float => {
+        .Bool, .Int, .Float => {
             asm volatile (""
                 :
                 : [_] "r,m" (value)
                 : "memory"
             );
         },
-        TypeId.Optional => {
+        .Optional => {
             if (value) |v| doNotOptimize(v);
         },
-        TypeId.Struct => {
+        .Struct => {
             inline for (comptime std.meta.fields(T)) |field| {
                 doNotOptimize(@field(value, field.name));
             }
         },
-        TypeId.Type, TypeId.Void, TypeId.NoReturn, TypeId.ComptimeFloat, TypeId.ComptimeInt, TypeId.Undefined, TypeId.Null, TypeId.Fn, TypeId.Namespace, TypeId.BoundFn => @compileError("doNotOptimize makes no sense for " ++ @tagName(typeId)),
+        .Type, .Void, .NoReturn, .ComptimeFloat, .ComptimeInt, .Undefined, .Null, .Fn, .Namespace, .BoundFn => @compileError("doNotOptimize makes no sense for " ++ @tagName(typeId)),
         else => @compileError("doNotOptimize is not implemented for " ++ @tagName(typeId)),
     }
 }
