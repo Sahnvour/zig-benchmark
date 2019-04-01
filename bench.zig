@@ -154,7 +154,7 @@ pub fn doNotOptimize(value: var) void {
                 doNotOptimize(@field(value, field.name));
             }
         },
-        .Type, .Void, .NoReturn, .ComptimeFloat, .ComptimeInt, .Undefined, .Null, .Fn, .Namespace, .BoundFn => @compileError("doNotOptimize makes no sense for " ++ @tagName(typeId)),
+        .Type, .Void, .NoReturn, .ComptimeFloat, .ComptimeInt, .Undefined, .Null, .Fn, .BoundFn => @compileError("doNotOptimize makes no sense for " ++ @tagName(typeId)),
         else => @compileError("doNotOptimize is not implemented for " ++ @tagName(typeId)),
     }
 }
