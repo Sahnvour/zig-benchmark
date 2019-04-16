@@ -62,6 +62,46 @@ pub const Context = struct {
         }
     }
 
+    pub fn startTimer(self: *Context) void {
+        self.timer.reset();
+    }
+
+    pub fn stopTimer(self: *Context) void {
+        const elapsed = self.timer.read();
+        self.nanoseconds += elapsed;
+    }
+
+    pub fn runExplicitTiming(self: *Context) bool {
+        switch (self.state) {
+            .None => {
+                self.state = .Heating;
+                return true;
+            },
+            .Heating => {
+                self.count += 1;
+                if (self.nanoseconds >= HeatingTime) {
+                    // Caches should be hot
+                    self.count = @intCast(u32, RunTime / (HeatingTime / self.count));
+                    self.nanoseconds = 0;
+                    self.state = .Running;
+                }
+
+                return true;
+            },
+            .Running => {
+                if (self.iter < self.count) {
+                    self.iter += 1;
+                    return true;
+                } else {
+                    self.state = .Finished;
+                    return false;
+                }
+            },
+            .Finished => unreachable,
+        }
+
+    }
+
     pub fn averageTime(self: *Context, unit: u64) f32 {
         assert(self.state == .Finished);
         return @intToFloat(f32, self.nanoseconds / unit) / @intToFloat(f32, self.iter);
@@ -204,4 +244,20 @@ test "benchmarkArgs types" {
 
     std.debug.warn("\n");
     benchmarkArgs("Min", benchMin, []type{ u32, u64 });
+}
+
+test "benchmark custom timing" {
+    const sleep = struct {
+        fn sleep(ctx: *Context) void {
+            while (ctx.runExplicitTiming()) {
+                time.sleep(30 * time.millisecond);
+                ctx.startTimer();
+                defer ctx.stopTimer();
+                time.sleep(10 * time.millisecond);
+            }
+        }
+    }.sleep;
+
+    std.debug.warn("\n");
+    benchmark("sleep", sleep);
 }
