@@ -1,5 +1,5 @@
 const std = @import("std");
-const TypeId = @import("builtin").TypeId;
+const TypeInfo = @import("builtin").TypeInfo;
 const assert = std.debug.assert;
 const time = std.time;
 const warn = std.debug.warn;
@@ -109,7 +109,7 @@ pub const Context = struct {
 
 pub fn benchmark(name: comptime []const u8, f: BenchFn) void {
     var ctx = Context.init();
-    @noInlineCall(f, &ctx);
+    @call(.{ .modifier = .never_inline }, f, .{&ctx});
 
     var unit: u64 = undefined;
     var unit_name: []const u8 = undefined;
@@ -127,7 +127,7 @@ pub fn benchmark(name: comptime []const u8, f: BenchFn) void {
         unit_name = "ms";
     }
 
-    warn("{}: avg {d:.3}{} ({} iterations)\n", name, ctx.averageTime(unit), unit_name, ctx.iter);
+    warn("{}: avg {d:.3}{} ({} iterations)\n", .{ name, ctx.averageTime(unit), unit_name, ctx.iter });
 }
 
 fn benchArgFn(comptime argType: type) type {
@@ -135,8 +135,8 @@ fn benchArgFn(comptime argType: type) type {
 }
 
 fn argTypeFromFn(comptime f: var) type {
-    comptime const F = @typeOf(f);
-    if (@typeId(F) != TypeId.Fn) {
+    comptime const F = @TypeOf(f);
+    if (@typeInfo(F) != .Fn) {
         @compileError("Argument must be a function.");
     }
 
@@ -151,7 +151,9 @@ fn argTypeFromFn(comptime f: var) type {
 pub fn benchmarkArgs(comptime name: []const u8, comptime f: var, comptime args: []const argTypeFromFn(f)) void {
     inline for (args) |a| {
         var ctx = Context.init();
-        @noInlineCall(f, &ctx, a);
+
+        comptime const options = std.builtin.CallOptions{ .modifier = .never_inline };
+        @call(options, f, .{ &ctx, a });
 
         var unit: u64 = undefined;
         var unit_name: []const u8 = undefined;
@@ -168,7 +170,8 @@ pub fn benchmarkArgs(comptime name: []const u8, comptime f: var, comptime args: 
             unit = time.millisecond;
             unit_name = "ms";
         }
-        warn("{} <{}>: avg {d:.3}{} ({} iterations)\n", name, if (@typeOf(a) == type) @typeName(a) else a, ctx.averageTime(unit), unit_name, ctx.iter);
+
+        warn("{} <{}>: avg {d:.3}{} ({} iterations)\n", .{ name, if (@TypeOf(a) == type) @typeName(a) else a, ctx.averageTime(unit), unit_name, ctx.iter });
     }
 }
 
@@ -176,7 +179,7 @@ pub fn doNotOptimize(value: var) void {
     // LLVM triggers an assert if we pass non-trivial types as inputs for the
     // asm volatile expression.
     // Workaround until asm support is better on Zig's end.
-    const T = @typeOf(value);
+    const T = @TypeOf(value);
     const typeId = @typeId(T);
     switch (typeId) {
         .Bool, .Int, .Float => {
@@ -216,7 +219,7 @@ test "benchmark" {
         }
     }.benchSleep57;
 
-    std.debug.warn("\n");
+    std.debug.warn("\n", .{});
     benchmark("Sleep57", benchSleep57);
 }
 
@@ -229,8 +232,8 @@ test "benchmarkArgs" {
         }
     }.benchSleep;
 
-    std.debug.warn("\n");
-    benchmarkArgs("Sleep", benchSleep, [_]u32{ 20, 30, 57 });
+    std.debug.warn("\n", .{});
+    benchmarkArgs("Sleep", benchSleep, &[_]u32{ 20, 30, 57 });
 }
 
 test "benchmarkArgs types" {
@@ -242,8 +245,8 @@ test "benchmarkArgs types" {
         }
     }.benchMin;
 
-    std.debug.warn("\n");
-    benchmarkArgs("Min", benchMin, [_]type{ u32, u64 });
+    std.debug.warn("\n", .{});
+    benchmarkArgs("Min", benchMin, &[_]type{ u32, u64 });
 }
 
 test "benchmark custom timing" {
@@ -258,6 +261,6 @@ test "benchmark custom timing" {
         }
     }.sleep;
 
-    std.debug.warn("\n");
+    std.debug.warn("\n", .{});
     benchmark("sleep", sleep);
 }
