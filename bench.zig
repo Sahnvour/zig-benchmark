@@ -15,8 +15,8 @@ pub const Context = struct {
     state: State,
     nanoseconds: u64,
 
-    const HeatingTime = time.second / 2;
-    const RunTime = time.second / 2;
+    const HeatingTime = time.ns_per_s / 2;
+    const RunTime = time.ns_per_s / 2;
 
     const State = enum {
         None,
@@ -116,18 +116,18 @@ pub fn benchmark(name: comptime []const u8, f: BenchFn) void {
     const avg_time = ctx.averageTime(1);
     assert(avg_time >= 0);
 
-    if (avg_time <= time.microsecond) {
+    if (avg_time <= time.ns_per_us) {
         unit = 1;
         unit_name = "ns";
-    } else if (avg_time <= time.millisecond) {
-        unit = time.microsecond;
+    } else if (avg_time <= time.ns_per_ms) {
+        unit = time.ns_per_us;
         unit_name = "us";
     } else {
-        unit = time.millisecond;
+        unit = time.ns_per_ms;
         unit_name = "ms";
     }
 
-    warn("{}: avg {d:.3}{} ({} iterations)\n", .{ name, ctx.averageTime(unit), unit_name, ctx.iter });
+    warn("{s}: avg {d:.3}{s} ({} iterations)\n", .{ name, ctx.averageTime(unit), unit_name, ctx.iter });
 }
 
 fn benchArgFn(comptime argType: type) type {
@@ -160,18 +160,18 @@ pub fn benchmarkArgs(comptime name: []const u8, comptime f: anytype, comptime ar
         const avg_time = ctx.averageTime(1);
         assert(avg_time >= 0);
 
-        if (avg_time <= time.microsecond) {
+        if (avg_time <= time.ns_per_us) {
             unit = 1;
             unit_name = "ns";
-        } else if (avg_time <= time.millisecond) {
-            unit = time.microsecond;
+        } else if (avg_time <= time.ns_per_ms) {
+            unit = time.ns_per_us;
             unit_name = "us";
         } else {
-            unit = time.millisecond;
+            unit = time.ns_per_ms;
             unit_name = "ms";
         }
 
-        warn("{} <{}>: avg {d:.3}{} ({} iterations)\n", .{ name, if (@TypeOf(a) == type) @typeName(a) else a, ctx.averageTime(unit), unit_name, ctx.iter });
+        warn("{s} <{s}>: avg {d:.3}{s} ({} iterations)\n", .{ name, if (@TypeOf(a) == type) @typeName(a) else "", ctx.averageTime(unit), unit_name, ctx.iter });
     }
 }
 
@@ -214,7 +214,7 @@ test "benchmark" {
     const benchSleep57 = struct {
         fn benchSleep57(ctx: *Context) void {
             while (ctx.run()) {
-                time.sleep(57 * time.millisecond);
+                time.sleep(57 * time.ns_per_ms);
             }
         }
     }.benchSleep57;
@@ -227,7 +227,7 @@ test "benchmarkArgs" {
     const benchSleep = struct {
         fn benchSleep(ctx: *Context, ms: u32) void {
             while (ctx.run()) {
-                time.sleep(ms * time.millisecond);
+                time.sleep(ms * time.ns_per_ms);
             }
         }
     }.benchSleep;
@@ -240,7 +240,7 @@ test "benchmarkArgs types" {
     const benchMin = struct {
         fn benchMin(ctx: *Context, comptime intType: type) void {
             while (ctx.run()) {
-                time.sleep(std.math.min(37, 48) * time.millisecond);
+                time.sleep(std.math.min(37, 48) * time.ns_per_ms);
             }
         }
     }.benchMin;
@@ -253,10 +253,10 @@ test "benchmark custom timing" {
     const sleep = struct {
         fn sleep(ctx: *Context) void {
             while (ctx.runExplicitTiming()) {
-                time.sleep(30 * time.millisecond);
+                time.sleep(30 * time.ns_per_ms);
                 ctx.startTimer();
                 defer ctx.stopTimer();
-                time.sleep(10 * time.millisecond);
+                time.sleep(10 * time.ns_per_ms);
             }
         }
     }.sleep;
