@@ -134,7 +134,7 @@ fn benchArgFn(comptime argType: type) type {
     return fn (*Context, argType) void;
 }
 
-fn argTypeFromFn(comptime f: var) type {
+fn argTypeFromFn(comptime f: anytype) type {
     comptime const F = @TypeOf(f);
     if (@typeInfo(F) != .Fn) {
         @compileError("Argument must be a function.");
@@ -148,7 +148,7 @@ fn argTypeFromFn(comptime f: var) type {
     return fnInfo.args[1].arg_type.?;
 }
 
-pub fn benchmarkArgs(comptime name: []const u8, comptime f: var, comptime args: []const argTypeFromFn(f)) void {
+pub fn benchmarkArgs(comptime name: []const u8, comptime f: anytype, comptime args: []const argTypeFromFn(f)) void {
     inline for (args) |a| {
         var ctx = Context.init();
 
@@ -175,7 +175,7 @@ pub fn benchmarkArgs(comptime name: []const u8, comptime f: var, comptime args: 
     }
 }
 
-pub fn doNotOptimize(value: var) void {
+pub fn doNotOptimize(value: anytype) void {
     // LLVM triggers an assert if we pass non-trivial types as inputs for the
     // asm volatile expression.
     // Workaround until asm support is better on Zig's end.
