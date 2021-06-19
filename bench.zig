@@ -107,9 +107,13 @@ pub const Context = struct {
     }
 };
 
-pub fn benchmark(name: comptime []const u8, f: BenchFn) void {
+pub fn benchmark(name: comptime []const u8, comptime f: BenchFn) void {
     var ctx = Context.init();
-    @call(.{ .modifier = .never_inline }, f, .{&ctx});
+
+    var result: void = undefined;
+    var frame: @Frame(f) = undefined;
+    _ = @asyncCall(&frame, &result, f, .{&ctx});
+    await frame;
 
     var unit: u64 = undefined;
     var unit_name: []const u8 = undefined;
@@ -152,8 +156,10 @@ pub fn benchmarkArgs(comptime name: []const u8, comptime f: anytype, comptime ar
     inline for (args) |a| {
         var ctx = Context.init();
 
-        comptime const options = std.builtin.CallOptions{ .modifier = .never_inline };
-        @call(options, f, .{ &ctx, a });
+        var result: void = undefined;
+        var frame: @Frame(f) = undefined;
+        _ = @asyncCall(&frame, &result, f, .{&ctx, a});
+        await frame;
 
         var unit: u64 = undefined;
         var unit_name: []const u8 = undefined;
@@ -234,19 +240,6 @@ test "benchmarkArgs" {
 
     std.debug.warn("\n", .{});
     benchmarkArgs("Sleep", benchSleep, &[_]u32{ 20, 30, 57 });
-}
-
-test "benchmarkArgs types" {
-    const benchMin = struct {
-        fn benchMin(ctx: *Context, comptime intType: type) void {
-            while (ctx.run()) {
-                time.sleep(std.math.min(37, 48) * time.ns_per_ms);
-            }
-        }
-    }.benchMin;
-
-    std.debug.warn("\n", .{});
-    benchmarkArgs("Min", benchMin, &[_]type{ u32, u64 });
 }
 
 test "benchmark custom timing" {
