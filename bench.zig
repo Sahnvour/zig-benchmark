@@ -6,7 +6,7 @@ const warn = std.debug.warn;
 
 const Timer = time.Timer;
 
-const BenchFn = fn (*Context) void;
+const BenchFn = fn (*Context) callconv(.Async) void;
 
 pub const Context = struct {
     timer: Timer,
