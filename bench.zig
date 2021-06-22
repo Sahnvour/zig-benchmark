@@ -156,9 +156,13 @@ pub fn benchmarkArgs(comptime name: []const u8, comptime f: anytype, comptime ar
     inline for (args) |a| {
         var ctx = Context.init();
 
+        comptime const arg_type = argTypeFromFn(f);
+        comptime const bench_fn_type: type = fn (*Context, arg_type) callconv(.Async) void;
+        comptime const f2: bench_fn_type = f;
+
         var result: void = undefined;
-        var frame: @Frame(f) = undefined;
-        _ = @asyncCall(&frame, &result, f, .{&ctx, a});
+        var frame: @Frame(f2) = undefined;
+        _ = @asyncCall(&frame, &result, f2, .{&ctx, a});
         await frame;
 
         var unit: u64 = undefined;
