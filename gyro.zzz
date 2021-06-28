@@ -1,0 +1,9 @@
+pkgs:
+  zig-benchmark:
+    version: 0.1.0
+    description: "Small and easy micro-benchmarking library."
+    source_url: "https://github.com/jojolepro/zig-benchmark"
+    root: bench.zig
+    files:
+      README.md
+      LICENSE
