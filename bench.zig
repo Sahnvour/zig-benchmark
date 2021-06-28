@@ -10,13 +10,14 @@ const BenchFn = fn (*Context) callconv(.Async) void;
 
 pub const Context = struct {
     timer: Timer,
+    run_timer: Timer,
     iter: u32,
     count: u32,
     state: State,
     nanoseconds: u64,
 
-    const HeatingTime = time.ns_per_s / 2;
-    const RunTime = time.ns_per_s / 2;
+    const HeatingTime = time.ns_per_s;
+    const RunTime = time.ns_per_s;
 
     const State = enum {
         None,
@@ -26,7 +27,7 @@ pub const Context = struct {
     };
 
     pub fn init() Context {
-        return Context{ .timer = Timer.start() catch unreachable, .iter = 0, .count = 0, .state = .None, .nanoseconds = 0 };
+        return Context{ .timer = Timer.start() catch unreachable, .run_timer = Timer.start() catch unreachable, .iter = 0, .count = 0, .state = .None, .nanoseconds = 0 };
     }
 
     pub fn run(self: *Context) bool {
@@ -34,11 +35,12 @@ pub const Context = struct {
             .None => {
                 self.state = .Heating;
                 self.timer.reset();
+                self.run_timer.reset();
                 return true;
             },
             .Heating => {
                 self.count += 1;
-                const elapsed = self.timer.read();
+                const elapsed = self.run_timer.read();
                 if (elapsed >= HeatingTime) {
                     // Caches should be hot
                     self.count = @intCast(u32, RunTime / (HeatingTime / self.count));
@@ -75,14 +77,16 @@ pub const Context = struct {
         switch (self.state) {
             .None => {
                 self.state = .Heating;
+                self.run_timer.reset();
                 return true;
             },
             .Heating => {
                 self.count += 1;
-                if (self.nanoseconds >= HeatingTime) {
+                if (self.run_timer.read() >= HeatingTime) {
                     // Caches should be hot
                     self.count = @intCast(u32, RunTime / (HeatingTime / self.count));
                     self.nanoseconds = 0;
+                    self.run_timer.reset();
                     self.state = .Running;
                 }
 
@@ -190,7 +194,7 @@ pub fn doNotOptimize(value: anytype) void {
     // asm volatile expression.
     // Workaround until asm support is better on Zig's end.
     const T = @TypeOf(value);
-    const typeId = @typeId(T);
+    const typeId = @typeInfo(T);
     switch (typeId) {
         .Bool, .Int, .Float => {
             asm volatile (""
