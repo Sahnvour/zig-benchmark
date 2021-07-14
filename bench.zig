@@ -1,3 +1,5 @@
+// Copyright 2021 Antoine Vugliano
+
 const std = @import("std");
 const TypeId = @import("builtin").TypeId;
 const assert = std.debug.assert;
