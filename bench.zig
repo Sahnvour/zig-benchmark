@@ -1,7 +1,7 @@
 // Copyright 2021 Antoine Vugliano
 
 const std = @import("std");
-const TypeId = @import("builtin").TypeId;
+const Type = std.builtin.Type;
 const assert = std.debug.assert;
 const time = std.time;
 const warn = std.debug.warn;
@@ -17,8 +17,8 @@ pub const Context = struct {
     state: State,
     nanoseconds: u64,
 
-    const HeatingTime = time.second / 2;
-    const RunTime = time.second / 2;
+    const HeatingTime = time.ns_per_s / 2;
+    const RunTime = time.ns_per_s / 2;
 
     const State = enum {
         None,
@@ -109,9 +109,10 @@ pub const Context = struct {
     }
 };
 
-pub fn benchmark(name: comptime []const u8, f: BenchFn) void {
+pub fn benchmark(name: []const u8, comptime f: BenchFn) void {
     var ctx = Context.init();
-    @noInlineCall(f, &ctx);
+    @call(.{ .modifier = .never_inline }, f, .{&ctx});
+    // @noInlineCall(f, &ctx);
 
     var unit: u64 = undefined;
     var unit_name: []const u8 = undefined;
@@ -136,9 +137,9 @@ fn benchArgFn(comptime argType: type) type {
     return fn (*Context, argType) void;
 }
 
-fn argTypeFromFn(comptime f: var) type {
-    comptime const F = @typeOf(f);
-    if (@typeId(F) != TypeId.Fn) {
+fn argTypeFromFn(comptime f: anytype) type {
+    const F = @TypeOf(f);
+    if (@typeInfo(F) != .Fn) {
         @compileError("Argument must be a function.");
     }
 
@@ -150,41 +151,41 @@ fn argTypeFromFn(comptime f: var) type {
     return fnInfo.args[1].arg_type.?;
 }
 
-pub fn benchmarkArgs(comptime name: []const u8, comptime f: var, comptime args: []const argTypeFromFn(f)) void {
-    inline for (args) |a| {
+pub fn benchmarkArgs(comptime name: []const u8, comptime f: anytype, args: []const argTypeFromFn(f)) void {
+    for (args) |a| {
         var ctx = Context.init();
-        @noInlineCall(f, &ctx, a);
+        @call(.{ .modifier = .never_inline }, f, .{ &ctx, a });
 
         var unit: u64 = undefined;
         var unit_name: []const u8 = undefined;
         const avg_time = ctx.averageTime(1);
         assert(avg_time >= 0);
 
-        if (avg_time <= time.microsecond) {
+        if (avg_time <= time.ns_per_us) {
             unit = 1;
             unit_name = "ns";
-        } else if (avg_time <= time.millisecond) {
-            unit = time.microsecond;
+        } else if (avg_time <= time.ns_per_ms) {
+            unit = time.ns_per_us;
             unit_name = "us";
         } else {
-            unit = time.millisecond;
+            unit = time.ns_per_ms;
             unit_name = "ms";
         }
-        warn("{} <{}>: avg {d:.3}{} ({} iterations)\n", name, if (@typeOf(a) == type) @typeName(a) else a, ctx.averageTime(unit), unit_name, ctx.iter);
+        std.debug.print("{s} <{s}>: avg {d:.3}{s} ({} iterations)\n", .{ name, @typeName(@TypeOf(a)), ctx.averageTime(unit), unit_name, ctx.iter });
     }
 }
 
-pub fn doNotOptimize(value: var) void {
+pub fn doNotOptimize(comptime T: type, value: T) void {
     // LLVM triggers an assert if we pass non-trivial types as inputs for the
     // asm volatile expression.
     // Workaround until asm support is better on Zig's end.
-    const T = @typeOf(value);
-    const typeId = @typeId(T);
+    // const T = @typeOf(value);
+    const typeId = @typeInfo(T);
     switch (typeId) {
         .Bool, .Int, .Float => {
             asm volatile (""
                 :
-                : [_] "r,m" (value)
+                : [_] "r,m" (value),
                 : "memory"
             );
         },
@@ -202,11 +203,7 @@ pub fn doNotOptimize(value: var) void {
 }
 
 pub fn clobberMemory() void {
-    asm volatile (""
-        :
-        :
-        : "memory"
-    );
+    asm volatile ("" ::: "memory");
 }
 
 test "benchmark" {
@@ -238,6 +235,7 @@ test "benchmarkArgs" {
 test "benchmarkArgs types" {
     const benchMin = struct {
         fn benchMin(ctx: *Context, comptime intType: type) void {
+            _ = intType;
             while (ctx.run()) {
                 time.sleep(std.math.min(37, 48) * time.millisecond);
             }
