@@ -43,7 +43,7 @@ pub const Context = struct {
                 const elapsed = self.timer.read();
                 if (elapsed >= HeatingTime) {
                     // Caches should be hot
-                    self.count = @intCast(u32, RunTime / (HeatingTime / self.count));
+                    self.count = @intCast(RunTime / (HeatingTime / self.count));
                     self.state = .Running;
                     self.timer.reset();
                 }
@@ -83,7 +83,7 @@ pub const Context = struct {
                 self.count += 1;
                 if (self.nanoseconds >= HeatingTime) {
                     // Caches should be hot
-                    self.count = @intCast(u32, RunTime / (HeatingTime / self.count));
+                    self.count = @intCast(RunTime / (HeatingTime / self.count));
                     self.nanoseconds = 0;
                     self.state = .Running;
                 }
@@ -105,7 +105,7 @@ pub const Context = struct {
 
     pub fn averageTime(self: *Context, unit: u64) f32 {
         assert(self.state == .Finished);
-        return @intToFloat(f32, self.nanoseconds / unit) / @intToFloat(f32, self.iter);
+        return @as(f32, @floatFromInt(self.nanoseconds / unit)) / @as(f32,@floatFromInt(self.iter));
     }
 };
 
@@ -144,17 +144,17 @@ fn argTypeFromFn(comptime f: anytype) type {
     }
 
     const fnInfo = @typeInfo(F).Fn;
-    if (fnInfo.args.len != 2) {
+    if (fnInfo.params.len != 2) {
         @compileError("Only functions taking 1 argument are accepted.");
     }
 
-    return fnInfo.args[1].arg_type.?;
+    return fnInfo.params[1].type.?;
 }
 
 pub fn benchmarkArgs(comptime name: []const u8, comptime f: anytype, args: []const argTypeFromFn(f)) void {
     for (args) |a| {
         var ctx = Context.init();
-        @call(.{ .modifier = .never_inline }, f, .{ &ctx, a });
+        @call(.never_inline, f, .{ &ctx, a });
 
         var unit: u64 = undefined;
         var unit_name: []const u8 = undefined;
